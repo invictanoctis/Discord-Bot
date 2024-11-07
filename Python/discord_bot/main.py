@@ -41,7 +41,7 @@ async def command_list(ctx):
     ping_embed.set_footer(text=f"Requested by {ctx.author.name}.", icon_url=ctx.author.avatar)
     await ctx.send(embed=ping_embed)
 
-games = {} # belongs to the ttt game
+games = {} # Belongs to the ttt game
 
 @bot.command(name="start_ttt")
 async def start_game_ttt(ctx, player1: discord.User, player2: discord.User):
@@ -98,7 +98,7 @@ async def reset_game_ttt(ctx):
 
 @bot.command(name="start_gg")
 async def guessing_game_command(ctx, end_interval: int):
-    game = GuessingGame(ctx, end_interval)  # Use positional arguments
+    game = GuessingGame(ctx, end_interval)
     await game.start_game()
 
 # Setup for the music feature
@@ -185,7 +185,6 @@ async def set_voice(ctx, voice_index: int):
 
 @bot.command(name="speak")
 async def speak(ctx, *, message: str):
-    """Speak the provided message in the voice channel."""
     if ctx.author.voice:
         channel = ctx.author.voice.channel
         if ctx.voice_client is None:
@@ -194,14 +193,12 @@ async def speak(ctx, *, message: str):
         engine = pyttsx3.init()
         voices = engine.getProperty('voices')
 
-        # Get the user's selected voice, or default to the first voice
         voice_index = user_voices.get(ctx.author.id, 0)  # Default to the first voice if not set
         engine.setProperty('voice', voices[voice_index].id)
 
         engine.save_to_file(message, 'D:/Data/Programming/Python/discord_bot/tts_assets.mp3')
         engine.runAndWait()
         
-        # Play the audio file
         ctx.voice_client.play(discord.FFmpegPCMAudio('D:/Data/Programming/Python/discord_bot/tts_assets.mp3'))
         await ctx.send(f'Now speaking: "{message}"')
     else:
@@ -221,7 +218,6 @@ async def random_gif(ctx):
             data = await response.json()
             gif_url = data['data']['images']['original']['url']
             
-            # Send the GIF in the channel
             await ctx.send(gif_url)
 
 @random_gif.error
@@ -235,7 +231,6 @@ async def random_gif_error(ctx, error):
 @bot.command()
 @commands.has_permissions(manage_nicknames=True) # Ensure the user has permission
 async def changenick(ctx, member: discord.Member, *, nickname: str):
-    # Change the nickname of the specified member
     try:
         await member.edit(nick=nickname)
         await ctx.send(f'Nickname for {member.mention} has been changed to `{nickname}`.')
