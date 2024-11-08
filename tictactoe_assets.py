@@ -24,7 +24,7 @@ class Tictactoe:
             return True
         return False
 
-    def make_move(self, position: int, symbol: str):
+    def make_move(self, position: int, symbol: str) -> bool:
         if self.board_list[position] == "▢":
             self.board_list[position] = symbol
             return True

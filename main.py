@@ -1,22 +1,26 @@
 import discord
-import yt_dlp as youtube_dl
 from discord.ext import commands
-from tictactoe_assets import Tictactoe
-from numberguessing_assets import GuessingGame
+import yt_dlp as youtube_dl
 import pyttsx3
 import aiohttp
+from discord_bot.bot_commands import start_game_ttt, make_move_ttt, reset_game_ttt
+from bot_commands import guessing_game_command
+from musicplayer_assets import MusicPlayer
 
-# General Setup
+# Block containing general setup
+
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
 intents.voice_states = True
 
-@bot.command()
-async def ping(ctx):
-    ping_embed = discord.Embed(title="Ping", description="Latency in ms", color=discord.Color.blurple())
-    ping_embed.add_field(name=f"{bot.user.name}'s Latency (ms): ", value=f"{round(bot.latency * 1000)}ms.", inline=False)
-    ping_embed.set_footer(text=f"Requested by {ctx.author.name}.", icon_url=ctx.author.avatar)
-    await ctx.send(embed=ping_embed)
+@bot.event
+async def on_ready():
+    print(f"Logged in as {bot.user}")
+    main_channel = bot.get_channel(807025341431676952)
+    welcome_text = discord.Embed(title="Hey, I'm now ready to be used!", description="Type !commands to see what I have to offer!", color=discord.Color.blurple())
+    await main_channel.send(embed=welcome_text)
+
+# Block containing general commands
 
 @bot.command(name="commands")
 async def command_list(ctx):
@@ -41,134 +45,70 @@ async def command_list(ctx):
     ping_embed.set_footer(text=f"Requested by {ctx.author.name}.", icon_url=ctx.author.avatar)
     await ctx.send(embed=ping_embed)
 
-games = {} # Belongs to the ttt game
+@bot.command()
+async def ping(ctx):
+    ping_embed = discord.Embed(title="Ping", description="Latency in ms", color=discord.Color.blurple())
+    ping_embed.add_field(name=f"{bot.user.name}'s Latency (ms): ", value=f"{round(bot.latency * 1000)}ms.", inline=False)
+    ping_embed.set_footer(text=f"Requested by {ctx.author.name}.", icon_url=ctx.author.avatar)
+    await ctx.send(embed=ping_embed)
+
+@bot.command()
+@commands.has_permissions(manage_nicknames=True)
+async def changenick(ctx, member: discord.Member, *, nickname: str):
+    try:
+        await member.edit(nick=nickname)
+        await ctx.send(f'Nickname for {member.mention} has been changed to `{nickname}`.')
+    except discord.Forbidden:
+        await ctx.send("I don't have permission to change that user's nickname.")
+    except discord.HTTPException:
+        await ctx.send("There was an error changing the nickname.")
+    except Exception as e:
+        await ctx.send(f"An error occurred: {str(e)}")
+
+
+# Block containing game commands
 
 @bot.command(name="start_ttt")
-async def start_game_ttt(ctx, player1: discord.User, player2: discord.User):
-    if ctx.channel.id in games:
-        await ctx.send("A game is already in progress in this channel.")
-        return
-    games[ctx.channel.id] = Tictactoe(player1.id, player2.id)
-    await ctx.send(f"Game started between {player1.mention} (X) and {player2.mention} (O)!\n" + games[ctx.channel.id].draw_board())
+async def start_game(ctx, player1: discord.User, player2: discord.User):
+    await start_game_ttt(ctx, player1, player2)
 
 @bot.command(name="move_ttt")
-async def make_move_ttt(ctx, position: int):
-    game = games.get(ctx.channel.id)
-    if not game:
-        await ctx.send("No game is currently active. Start a new game with '!start_ttt @player1 @player2'.")
-        return
-
-    # Check if it's the current player's turn
-    if ctx.author.id != game.current_turn:
-        await ctx.send("It's not your turn!")
-        return
-
-    current_symbol = "X" if ctx.author.id == game.cr else "O"
-
-    if game.make_move(position - 1, current_symbol):
-        await ctx.send(game.draw_board())
-        
-        if game.check_win(current_symbol):
-            await ctx.send(f"Congratulations {ctx.author.mention}, you won!")
-            game.reset_game()  # Reset the game state
-            del games[ctx.channel.id]
-            return
-        
-        # Check for draw: if the board is full and no one has won
-        if all(space != "▢" for space in game.board_list):
-            await ctx.send("It's a draw! No more moves left.")
-            game.reset_game()  # Reset the game state
-            del games[ctx.channel.id]
-            return
-        
-        # Switch turns
-        game.current_turn = game.ci if current_symbol == "X" else game.cr  
-    else:
-        await ctx.send("Invalid move! That position is already taken.")
+async def make_move(ctx, position: int):
+    await make_move_ttt(ctx, position)
 
 @bot.command(name="reset_ttt")
-async def reset_game_ttt(ctx):
-    game = games.get(ctx.channel.id)
-    if game:
-        game.reset_game()
-        await ctx.send("The game has been reset!")
-        del games[ctx.channel.id]
-    else:
-        await ctx.send("No game is currently active. Start a new game with '!start_ttt @player1 @player2'.")
+async def reset_game(ctx):
+    await reset_game_ttt(ctx)
 
 @bot.command(name="start_gg")
-async def guessing_game_command(ctx, end_interval: int):
-    game = GuessingGame(ctx, end_interval)
-    await game.start_game()
+async def start_game(ctx, end_interval: int):
+    await guessing_game_command(ctx, end_interval)
 
-# Setup for the music feature
-youtube_dl.utils.bug_reports_message = lambda: ''
-ytdl_format_options = {
-    'format': 'bestaudio',
-    'extractaudio': True,
-    'audioformat': 'mp3',
-    'outtmpl': '%(title)s.%(ext)s',
-    'restrictfilenames': True,
-    'noplaylist': True,
-    'nocheckcertificate': True,
-    'source_address': None,
-}
-ffmpeg_options = {
-    'executable': 'D:/Programme/FFMPEG/ffmpeg-2024-10-31-git-87068b9600-full_build/bin/ffmpeg.exe',
-    'options': '-vn -ac 2 -ar 48000 -b:a 192k',
-}
-ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
+# Block containing music player commands
 
-@bot.command()
+@bot.command(name="join")
 async def join(ctx):
-    if ctx.author.voice:
-        channel = ctx.author.voice.channel
-        await channel.connect()
-    else:
-        await ctx.send("You are not in a voice channel.")
+    music_player = MusicPlayer(ctx)
+    await music_player.join_channel()
 
-@bot.command()
+@bot.command(name="leave")
 async def leave(ctx):
-    if ctx.voice_client:
-        await ctx.voice_client.disconnect()
-    else:
-        await ctx.send("I'm not in a voice channel.")
+    music_player = MusicPlayer(ctx)
+    await music_player.leave_channel()
 
-@bot.command()
+@bot.command(name="play")
 async def play(ctx, url):
-    if not ctx.voice_client:
-        await ctx.send("I need to be in a voice channel to play music.")
-        return
+    music_player = MusicPlayer(ctx)
+    await music_player.play_music(url)
 
-    async with ctx.typing():
-        try:
-            info = ytdl.extract_info(url, download=False)
-            # Look for an audio stream that is not 'none'
-            audio_url = next((f['url'] for f in info['formats'] if f.get('acodec') != 'none'), None)
-            if audio_url is None:
-                await ctx.send("Could not find a valid audio stream.")
-                return
-            print(f"Playing URL: {audio_url}")  # Debugging output
-        except Exception as e:
-            await ctx.send(f"An error occurred while extracting info: {e}")
-            return
-
-    try:
-        source = discord.FFmpegPCMAudio(audio_url, **ffmpeg_options)
-        ctx.voice_client.play(source)
-        await ctx.send(f'Now playing: {info["title"]}')
-    except Exception as e:
-        await ctx.send(f"An error occurred while trying to play audio: {e}")
-
-@bot.command()
+@bot.command(name="stop")
 async def stop(ctx):
-    if ctx.voice_client and ctx.voice_client.is_playing():
-        ctx.voice_client.stop()
-        await ctx.send("Stopped the playback.")
-    else:
-        await ctx.send("I'm not playing anything.")
+    music_player = MusicPlayer(ctx)
+    await music_player.stop_music()
 
-user_voices = {} # Belongs to the tts
+# Block containing tts commands
+
+user_voices = {}
 
 @bot.command(name="set_voice")
 async def set_voice(ctx, voice_index: int):
@@ -204,11 +144,10 @@ async def speak(ctx, *, message: str):
     else:
         await ctx.send("You need to be in a voice channel to use this command.")
 
-with open("D:/Data/Programming/Python/discord_bot/giphy_token.txt") as file_g:
-    giphy_token = file_g.read()
+# Block containing giphy commands
 
 @bot.command()
-@commands.cooldown(1, 30, commands.BucketType.user) # 1 use every 30 seconds per user
+@commands.cooldown(1, 30, commands.BucketType.user) 
 async def random_gif(ctx):
     # Giphy API endpoint for random GIFs
     url = f'https://api.giphy.com/v1/gifs/random?api_key={giphy_token}&tag=&rating=g'
@@ -228,25 +167,10 @@ async def random_gif_error(ctx, error):
         # Handle other errors if needed
         await ctx.send("An error occurred.")
 
-@bot.command()
-@commands.has_permissions(manage_nicknames=True) # Ensure the user has permission
-async def changenick(ctx, member: discord.Member, *, nickname: str):
-    try:
-        await member.edit(nick=nickname)
-        await ctx.send(f'Nickname for {member.mention} has been changed to `{nickname}`.')
-    except discord.Forbidden:
-        await ctx.send("I don't have permission to change that user's nickname.")
-    except discord.HTTPException:
-        await ctx.send("There was an error changing the nickname.")
-    except Exception as e:
-        await ctx.send(f"An error occurred: {str(e)}")
+# Block containing token handling
 
-@bot.event
-async def on_ready():
-    print(f"Logged in as {bot.user}")
-    main_channel = bot.get_channel(807025341431676952)
-    welcome_text = discord.Embed(title="Hey, I'm now ready to be used!", description="Type !commands to see what I have to offer!", color=discord.Color.blurple())
-    await main_channel.send(embed=welcome_text)
+with open("D:/Data/Programming/Python/discord_bot/giphy_token.txt") as file_g:
+    giphy_token = file_g.read()
 
 with open("D:/Data/Programming/Python/discord_bot/discord_token.txt") as file_d:
     discord_token = file_d.read()
