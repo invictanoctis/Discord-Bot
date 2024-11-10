@@ -3,7 +3,7 @@ from discord.ext import commands
 import yt_dlp as youtube_dl
 import pyttsx3
 import aiohttp
-from discord_bot.bot_commands import start_game_ttt, make_move_ttt, reset_game_ttt
+from bot_commands import start_game_ttt, make_move_ttt, reset_game_ttt
 from bot_commands import guessing_game_command
 from musicplayer_assets import MusicPlayer
 
@@ -136,10 +136,10 @@ async def speak(ctx, *, message: str):
         voice_index = user_voices.get(ctx.author.id, 0)  # Default to the first voice if not set
         engine.setProperty('voice', voices[voice_index].id)
 
-        engine.save_to_file(message, 'D:/Data/Programming/Python/discord_bot/tts_assets.mp3')
+        engine.save_to_file(message, 'D:/Data/Programming/Python/discordbot/tts_assets.mp3')
         engine.runAndWait()
         
-        ctx.voice_client.play(discord.FFmpegPCMAudio('D:/Data/Programming/Python/discord_bot/tts_assets.mp3'))
+        ctx.voice_client.play(discord.FFmpegPCMAudio('D:/Data/Programming/Python/discordbot/tts_assets.mp3'))
         await ctx.send(f'Now speaking: "{message}"')
     else:
         await ctx.send("You need to be in a voice channel to use this command.")
@@ -169,10 +169,10 @@ async def random_gif_error(ctx, error):
 
 # Block containing token handling
 
-with open("D:/Data/Programming/Python/discord_bot/giphy_token.txt") as file_g:
+with open("D:/Data/Programming/Python/discordbot/giphy_token.txt") as file_g:
     giphy_token = file_g.read()
 
-with open("D:/Data/Programming/Python/discord_bot/discord_token.txt") as file_d:
+with open("D:/Data/Programming/Python/discordbot/discord_token.txt") as file_d:
     discord_token = file_d.read()
 
 bot.run(discord_token)
